@@ -53,10 +53,10 @@ To implement the object tracking using YOLOv4, first we convert the .weights int
 python save_model.py --model yolov4 
 
 # Run yolov4 deep sort object tracker on video
-python object_tracker.py --video ./data/video/test.mp4 --output ./outputs/demo.avi --model yolov4
+python tracker.py --video ./data/video/test.mp4 --output ./outputs/demo.avi --model yolov4
 
 # Run yolov4 deep sort object tracker on webcam (set video flag to 0)
-python object_tracker.py --video 0 --output ./outputs/webcam.avi --model yolov4
+python tracker.py --video 0 --output ./outputs/webcam.avi --model yolov4
 ```
 The output flag allows you to save the resulting video of the object tracker running so that you can view it again later. Video will be saved to the path that you set. (outputs folder is where it will be if you run the above command!)
 
@@ -109,7 +109,7 @@ save_model.py:
   --model: yolov3 or yolov4
     (default: yolov4)
     
- object_tracker.py:
+ tracker.py:
   --video: path to input video (use 0 for webcam)
     (default: './data/video/test.mp4')
   --output: path to output video (remember to set right codec for given format. e.g. XVID for .avi)
