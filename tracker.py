@@ -8,17 +8,29 @@ from core.config import cfg
 from tools import generate_detections as gdet
 from deep_sort import preprocessing, nn_matching
 
+np.random.seed(8)
+
+
+def drawBoundingBox(frame, box, text, color):
+    text = str(text)
+    color = [i * 255 for i in color]
+    cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
+    cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[0]) + len(text) * 11 + 7, int(box[1] + 21)), color, -1)
+    cv2.putText(frame, text, (int(box[0]) + 3, int(box[1] + 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
 
 class Tracker:
     
     def __init__(self):
-        self.max_cosine_distance = 1
-        self.nms_max_overlap = 1
+        self.nms_max_overlap = 1.0
         self.info = False
         
-        metric = nn_matching.NearestNeighborDistanceMetric('cosine', self.max_cosine_distance)
-        self.encoder = gdet.create_box_encoder('./yolov4-deepsort/model_data/market1501.pb', batch_size=1)
-        self.tracker = deep_sort.tracker.Tracker(metric)
+        metric_type = 'cosine'  # 'cosine' or 'euclidean'
+        max_distance = 100000
+        metric = nn_matching.NearestNeighborDistanceMetric(metric_type, max_distance)
+        self.encoder = gdet.create_box_encoder('./yolov4-deepsort/model_data/mars.pb', batch_size=1)
+        
+        self.tracker = deep_sort.tracker.Tracker(metric, max_iou_distance=10, max_age=50, n_init=5)
         self.class_names = utils.read_class_names(cfg.YOLO.CLASSES)
         
         color_map = plt.get_cmap('tab20b')
@@ -38,12 +50,16 @@ class Tracker:
         indices = preprocessing.non_max_suppression(boxes, classes, self.nms_max_overlap, scores)
         detections = [detections[i] for i in indices]
         
+        # print(features)
+        # for d in detections:
+        #     print(vars(d))
+        
         # Call the tracker
         self.tracker.predict()
         self.tracker.update(detections)
         
         tracks_num = 0
-
+        
         out = frame.copy()
         # update tracks
         for track in self.tracker.tracks:
@@ -53,7 +69,7 @@ class Tracker:
             class_name = self.class_names[track.get_class()]
             tracks_num += 1
             
-            self.drawBoundingBox(out, track, bbox, class_name)
+            drawBoundingBox(out, bbox, track.track_id, self.colors[int(track.track_id) % len(self.colors)])
             
             # if enable info flag then print details about each track
             if self.info:
@@ -66,14 +82,5 @@ class Tracker:
                      int(bbox[3]))
                 ))
         
-        print(len(names), tracks_num, '--' * tracks_num)
+        print(len(names), tracks_num, len(detections), '--' * tracks_num)
         cv2.imshow('tracker', out)
-    
-    def drawBoundingBox(self, frame, track, bbox, class_name):
-        color = self.colors[int(track.track_id) % len(self.colors)]
-        color = [i * 255 for i in color]
-        cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
-        # cv2.rectangle(frame, (int(bbox[0]), int(bbox[1] - 30)),
-        #               (int(bbox[0]) + (len(class_name) + len(str(track.track_id))) * 11, int(bbox[1])), color, -1)
-        cv2.putText(frame, class_name + '-' + str(track.track_id), (int(bbox[0]), int(bbox[1] - 10)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
